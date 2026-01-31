@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>JNC Edukasi</title>
+  <title>PPTS SUMENEP</title>
   <link rel="icon" href="https://static.vecteezy.com/system/resources/previews/016/716/181/large_2x/website-3d-icon-png.png" type="image/x-icon">
   <style>
     html, body {
@@ -11,7 +11,8 @@
       padding: 0;
       height: 100%;
       overflow: hidden;
-      font-family: sans-serif;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f4f4f9;
     }
     .iframe-container {
       position: relative;
@@ -22,77 +23,148 @@
       width: 100%;
       height: 100%;
       border: none;
+      display: none; /* Sembunyikan sampai lokasi didapat */
     }
-    .loader {
+    .status-overlay {
       position: absolute;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      font-size: 1.2rem;
-      color: #666;
+      text-align: center;
       z-index: 10;
+      width: 80%;
+    }
+    .loader-spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #3498db;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    #status-text {
+      color: #555;
+      font-size: 1rem;
+    }
+    .error-btn {
+      margin-top: 15px;
+      padding: 10px 20px;
+      background: #3498db;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
   <div class="iframe-container">
-    <div class="loader" id="loader">Meminta Izin Lokasi...</div>
+    <div class="status-overlay" id="status-container">
+      <div class="loader-spinner" id="spinner"></div>
+      <div id="status-text">Menginisialisasi GPS...</div>
+      <button id="retry-btn" class="error-btn" style="display:none;" onclick="location.reload()">Coba Lagi</button>
+    </div>
+    
     <iframe 
       id="jnc-frame"
       src="" 
       title="JNCfy Web App"
-      onload="document.getElementById('loader').style.display='none';"
       allow="geolocation"
       allowfullscreen>
     </iframe>
   </div>
 
   <script>
-    const baseUrl = "https://script.google.com/macros/s/AKfycbw4S7qiXRRnG3RJyB0Erq5CJCZYjm3XNBaXDU0o90DFiqqr9Chxdggtf5oqlR724-Wz/exec";
+    const baseUrl = "https://script.google.com/macros/s/AKfycbw00LyzA0ja-31OkiWHGCGXefRAl2MM5ZdAVzRkJX0Dd-uinCSX6gsaXKzn74a5tglsHw/exec";
     const iframe = document.getElementById('jnc-frame');
-    const loader = document.getElementById('loader');
+    const statusText = document.getElementById('status-text');
+    const spinner = document.getElementById('spinner');
+    const retryBtn = document.getElementById('retry-btn');
 
-    function getLocation() {
-      if (navigator.geolocation) {
-        // Opsi enableHighAccuracy: true akan memaksa penggunaan GPS (lebih akurat)
-        navigator.geolocation.getCurrentPosition(showPosition, showError, {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
-        });
-      } else {
-        loader.innerText = "Geolocation tidak didukung browser ini.";
-        iframe.src = baseUrl;
+    let locationFound = false;
+
+    function initGPS() {
+      if (!navigator.geolocation) {
+        showErrorMsg("Browser Anda tidak mendukung GPS.");
+        loadIframe(baseUrl); // Load default jika gagal
+        return;
       }
+
+      statusText.innerText = "Mencari koordinat akurat...";
+
+      // Menggunakan watchPosition untuk mendapatkan hasil yang lebih presisi secara bertahap
+      const watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          const acc = position.coords.accuracy;
+          
+          // Jika akurasi sudah cukup bagus (dibawah 100 meter) atau setelah percobaan pertama
+          if (!locationFound) {
+            locationFound = true;
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            
+            console.log(`Lokasi ditemukan: ${lat}, ${lng} (Akurasi: ${acc}m)`);
+            loadIframe(`${baseUrl}?lat=${lat}&lng=${lng}&acc=${Math.round(acc)}`);
+            
+            // Berhenti melacak setelah mendapatkan posisi pertama yang valid untuk menghemat baterai
+            navigator.geolocation.clearWatch(watchId);
+          }
+        },
+        (error) => {
+          handleError(error);
+          navigator.geolocation.clearWatch(watchId);
+        },
+        {
+          enableHighAccuracy: true, // WAJIB: Memaksa penggunaan Hardware GPS
+          timeout: 15000,           // Memberikan waktu 15 detik untuk mengunci satelit
+          maximumAge: 0             // Jangan gunakan data lokasi lama yang tersimpan di cache
+        }
+      );
     }
 
-    function showPosition(position) {
-      const lat = position.coords.latitude;
-      const lon = position.coords.longitude;
-      // Menambahkan koordinat ke URL iframe
-      iframe.src = `${baseUrl}?lat=${lat}&lng=${lon}`;
+    function loadIframe(url) {
+      iframe.src = url;
+      iframe.style.display = "block";
+      
+      iframe.onload = () => {
+        document.getElementById('status-container').style.display = 'none';
+      };
     }
 
-    function showError(error) {
+    function handleError(error) {
+      let msg = "";
       switch(error.code) {
         case error.PERMISSION_DENIED:
-          loader.innerText = "Izin lokasi ditolak pengguna.";
+          msg = "Izin lokasi ditolak. Harap izinkan akses lokasi di pengaturan browser Anda.";
           break;
         case error.POSITION_UNAVAILABLE:
-          loader.innerText = "Informasi lokasi tidak tersedia.";
+          msg = "Sinyal GPS tidak ditemukan. Pastikan GPS perangkat aktif.";
           break;
         case error.TIMEOUT:
-          loader.innerText = "Waktu permintaan lokasi habis.";
-          break;
+          msg = "Waktu pencarian lokasi habis. Mencoba memuat ulang...";
+          setTimeout(() => location.reload(), 2000);
+          return;
         default:
-          loader.innerText = "Terjadi kesalahan yang tidak diketahui.";
+          msg = "Terjadi kesalahan pada GPS.";
       }
-      // Tetap muat iframe tanpa koordinat jika gagal
-      iframe.src = baseUrl;
+      showErrorMsg(msg);
+      // Tetap muat aplikasi setelah 3 detik meskipun lokasi gagal (opsional)
+      setTimeout(() => loadIframe(baseUrl), 3000);
     }
 
-    // Jalankan fungsi saat halaman dimuat
-    window.onload = getLocation;
+    function showErrorMsg(msg) {
+      statusText.innerText = msg;
+      spinner.style.display = "none";
+      retryBtn.style.display = "inline-block";
+    }
+
+    // Mulai proses saat halaman siap
+    window.addEventListener('DOMContentLoaded', initGPS);
   </script>
 </body>
 </html>
