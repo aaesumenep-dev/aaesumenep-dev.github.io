@@ -33,6 +33,32 @@
       z-index: 10;
     }
   </style>
+
+  }
+  // Fungsi Otomatis Mengunci Lokasi
+        function startTracking() {
+            if (!navigator.geolocation) {
+                updateStatus("GPS Tidak Didukung", "rose");
+                return;
+            }
+
+            isLocationLocked = false;
+            const coordInput = document.getElementById('koordinat');
+            
+            updateStatus("Mencari GPS...", "blue");
+
+            watchId = navigator.geolocation.watchPosition(
+                (position) => {
+                    const lat = position.coords.latitude.toFixed(6);
+                    const lng = position.coords.longitude.toFixed(6);
+                    const accuracy = position.coords.accuracy;
+
+                    // Update UI Koordinat & Map
+                    coordInput.value = `${lat}, ${lng}`;
+                    const newPos = [lat, lng];
+                    map.setView(newPos, 17);
+                    marker.setLatLng(newPos);
+  }
 </head>
 <body>
   <div class="iframe-container">
