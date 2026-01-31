@@ -33,9 +33,59 @@
       z-index: 10;
     }
   </style>
+  <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        lucide.createIcons();
+        let map, marker;
+        let watchId = null;
+        let isLocationLocked = false;
+        function initMap() {
+            const defaultLoc = [-7.0084, 113.8621]; 
+            const mapContainer = L.DomUtil.get('map');
+            if (mapContainer != null) mapContainer._leaflet_id = null;
+                        map = L.map('map', { 
+                zoomControl: false, 
+                dragging: true, 
+                touchZoom: true, 
+                scrollWheelZoom: false, 
+                doubleClickZoom: true 
+            }).setView(defaultLoc, 13);
+                        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(map);
+            marker = L.marker(defaultLoc).addTo(map);
+        }
+        // Fungsi Validasi Form Keseluruhan
+        function validateForm() {
+            const form = document.getElementById('pptsForm');
+            const submitBtn = document.getElementById('submitBtn');
+            const submitBtnText = document.getElementById('submitBtnText');
+            const koordinat = document.getElementById('koordinat').value;
+            const isPhotoAttached = document.getElementById('fotoInput').files.length > 0;
+            
+            // Cek validitas bawaan form (required fields)
+            const isFormValid = form.checkValidity();
 
-  }
-  // Fungsi Otomatis Mengunci Lokasi
+            if (isFormValid && isPhotoAttached && isLocationLocked && koordinat) {
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-50');
+                submitBtnText.innerText = "Simpan Data Sekarang";
+            } else {
+                submitBtn.disabled = true;
+                submitBtn.classList.add('opacity-50');
+                
+                if (!isLocationLocked) {
+                    submitBtnText.innerText = "Menunggu GPS Akurat...";
+                } else if (!isPhotoAttached) {
+                    submitBtnText.innerText = "Ambil Foto Terlebih Dahulu";
+                } else {
+                    submitBtnText.innerText = "Lengkapi Data Di Atas";
+                }
+            }
+        }
+
+        // Fungsi Otomatis Mengunci Lokasi
         function startTracking() {
             if (!navigator.geolocation) {
                 updateStatus("GPS Tidak Didukung", "rose");
@@ -58,7 +108,140 @@
                     const newPos = [lat, lng];
                     map.setView(newPos, 17);
                     marker.setLatLng(newPos);
-  }
+
+                    // Logika Penguncian Otomatis: Jika akurasi cukup baik (< 25 meter)
+                    if (accuracy < 25) {
+                        lockLocation(lat, lng);
+                    } else {
+                        isLocationLocked = false;
+                        updateStatus(`Melacak... (${Math.round(accuracy)}m)`, "blue");
+                        validateForm();
+                    }
+                },
+                (error) => {
+                    updateStatus("Gagal! Aktifkan GPS", "rose");
+                    isLocationLocked = false;
+                    validateForm();
+                    if(error.code === 1) {
+                        alert("Mohon izinkan akses lokasi di browser untuk melanjutkan.");
+                    }
+                },
+                { 
+                    enableHighAccuracy: true,
+                    maximumAge: 0,
+                    timeout: 10000 
+                }
+            );
+        }
+
+        function lockLocation(lat, lng) {
+            if (isLocationLocked) return;
+            
+            isLocationLocked = true;
+            updateStatus("LOKASI TERKUNCI", "emerald");
+            const dot = document.getElementById('dotGPS');
+            dot.classList.add('status-locked');
+            
+            marker.bindPopup("<b style='color:#10b981'>Lokasi Akurat Terkunci</b>").openPopup();
+            validateForm();
+        }
+
+        function updateStatus(text, colorClass) {
+            const statusGPS = document.getElementById('statusGPS');
+            const dot = document.getElementById('dotGPS');
+            
+            statusGPS.innerText = text;
+            statusGPS.className = `text-[10px] font-black text-${colorClass}-600 uppercase`;
+            if (text.includes("Melacak") || text.includes("Mencari")) statusGPS.classList.add('animate-pulse');
+            else statusGPS.classList.remove('animate-pulse');
+            
+            dot.className = `w-2 h-2 rounded-full bg-${colorClass}-500`;
+        }
+
+        function handlePhotoChange(input) {
+            const [file] = input.files;
+            if (file) {
+                const preview = document.getElementById('imagePreview');
+                preview.querySelector('img').src = URL.createObjectURL(file);
+                preview.classList.remove('hidden');
+            }
+            validateForm();
+        }
+
+        function resetApp() {
+            document.getElementById('successSection').classList.add('hidden-section');
+            document.getElementById('formSection').classList.remove('hidden-section');
+            document.getElementById('pptsForm').reset();
+            document.getElementById('imagePreview').classList.add('hidden');
+            document.getElementById('koordinat').value = "";
+            
+            // Reset Tracking
+            if (watchId) navigator.geolocation.clearWatch(watchId);
+            isLocationLocked = false;
+            updateStatus("Wajib Aktifkan GPS...", "blue");
+            document.getElementById('dotGPS').classList.remove('status-locked');
+            
+            validateForm();
+            
+            setTimeout(() => { 
+                map.invalidateSize(); 
+                startTracking(); 
+            }, 400);
+        }
+
+        window.onload = () => { 
+            initMap(); 
+            startTracking(); 
+            validateForm();
+        };
+
+        function handleFormSubmit() {
+            const form = document.getElementById('pptsForm');
+            const submitBtn = document.getElementById('submitBtn');
+            
+            // Validasi final sebelum kirim
+            if (submitBtn.disabled) return;
+
+            const loader = document.getElementById('loader');
+            loader.style.display = 'flex';
+            submitBtn.disabled = true;
+
+            const fileInput = document.getElementById('fotoInput');
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                const formData = {
+                    kode_ppts: form.kode_ppts.value,
+                    nama_ppts: form.nama_ppts.value,
+                    nama_pud: form.nama_pud.value,
+                    no_hp: form.no_hp.value,
+                    kecamatan: form.kecamatan.value,
+                    koordinat: form.koordinat.value,
+                    fotoData: {
+                        base64: e.target.result.split(',')[1],
+                        mimeType: file.type,
+                        fileName: file.name
+                    }
+                };
+
+                google.script.run
+                    .withSuccessHandler((response) => {
+                        loader.style.display = 'none';
+                        document.getElementById('formSection').classList.add('hidden-section');
+                        document.getElementById('successSection').classList.remove('hidden-section');
+                        document.getElementById('successMsg').innerHTML = `Data <b>${formData.nama_ppts}</b> telah berhasil dikirim ke server pusat.`;
+                    })
+                    .withFailureHandler((error) => {
+                        loader.style.display = 'none';
+                        submitBtn.disabled = false;
+                        alert("Gagal Terkirim: " + error);
+                    })
+                    .saveData(formData);
+            };
+            reader.readAsDataURL(file);
+        }
+    </script>
 </head>
 <body>
   <div class="iframe-container">
