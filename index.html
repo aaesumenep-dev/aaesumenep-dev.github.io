@@ -23,7 +23,7 @@
       width: 100%;
       height: 100%;
       border: none;
-      display: none; /* Sembunyikan sampai lokasi didapat */
+      display: none; 
     }
     .status-overlay {
       position: absolute;
@@ -87,84 +87,106 @@
     const retryBtn = document.getElementById('retry-btn');
 
     let locationFound = false;
+    let fallbackExecuted = false;
+
+    /**
+     * Fallback menggunakan deteksi IP jika GPS gagal.
+     * Jika fetch gagal karena CORS atau jaringan, aplikasi akan langsung memuat URL utama.
+     */
+    async function getIpLocation() {
+      if (fallbackExecuted) return;
+      fallbackExecuted = true;
+
+      try {
+        statusText.innerText = "Mendeteksi lokasi melalui jaringan...";
+        
+        // Timeout untuk fetch agar tidak menunggu terlalu lama
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+        const response = await fetch('https://freeipapi.com/api/json', { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (!response.ok) throw new Error("Gagal menghubungi API Lokasi");
+        
+        const data = await response.json();
+        
+        if (data && data.latitude && data.longitude) {
+          console.log("Lokasi IP ditemukan:", data.latitude, data.longitude);
+          loadIframe(`${baseUrl}?lat=${data.latitude}&lng=${data.longitude}&mode=ip`);
+        } else {
+          throw new Error("Data lokasi tidak valid");
+        }
+      } catch (e) {
+        console.warn("Semua metode deteksi lokasi gagal, memuat URL default:", e.message);
+        loadIframe(baseUrl);
+      }
+    }
 
     function initGPS() {
-      if (!navigator.geolocation) {
-        showErrorMsg("Browser Anda tidak mendukung GPS.");
-        loadIframe(baseUrl); // Load default jika gagal
-        return;
-      }
-
-      statusText.innerText = "Mencari koordinat akurat...";
-
-      // Menggunakan watchPosition untuk mendapatkan hasil yang lebih presisi secara bertahap
-      const watchId = navigator.geolocation.watchPosition(
-        (position) => {
-          const acc = position.coords.accuracy;
-          
-          // Jika akurasi sudah cukup bagus (dibawah 100 meter) atau setelah percobaan pertama
-          if (!locationFound) {
-            locationFound = true;
-            const lat = position.coords.latitude;
-            const lng = position.coords.longitude;
-            
-            console.log(`Lokasi ditemukan: ${lat}, ${lng} (Akurasi: ${acc}m)`);
-            loadIframe(`${baseUrl}?lat=${lat}&lng=${lng}&acc=${Math.round(acc)}`);
-            
-            // Berhenti melacak setelah mendapatkan posisi pertama yang valid untuk menghemat baterai
-            navigator.geolocation.clearWatch(watchId);
-          }
-        },
-        (error) => {
-          handleError(error);
-          navigator.geolocation.clearWatch(watchId);
-        },
-        {
-          enableHighAccuracy: true, // WAJIB: Memaksa penggunaan Hardware GPS
-          timeout: 15000,           // Memberikan waktu 15 detik untuk mengunci satelit
-          maximumAge: 0             // Jangan gunakan data lokasi lama yang tersimpan di cache
+      // Set timeout global untuk inisialisasi lokasi
+      const globalTimeout = setTimeout(() => {
+        if (!locationFound) {
+          console.warn("Global timeout tercapai, menjalankan fallback IP...");
+          getIpLocation();
         }
-      );
+      }, 7000);
+
+      if (navigator.geolocation) {
+        statusText.innerText = "Mencari titik koordinat presisi...";
+        
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            clearTimeout(globalTimeout);
+            if (!locationFound) {
+              locationFound = true;
+              const lat = position.coords.latitude;
+              const lng = position.coords.longitude;
+              const acc = position.coords.accuracy;
+              
+              loadIframe(`${baseUrl}?lat=${lat}&lng=${lng}&acc=${Math.round(acc)}&mode=gps`);
+            }
+          },
+          (error) => {
+            clearTimeout(globalTimeout);
+            console.warn("GPS Native gagal:", error.message);
+            getIpLocation();
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 6000,
+            maximumAge: 0
+          }
+        );
+      } else {
+        clearTimeout(globalTimeout);
+        getIpLocation();
+      }
     }
 
     function loadIframe(url) {
+      // Mencegah pemuatan ganda jika salah satu metode (GPS/IP) selesai bersamaan
+      if (iframe.src && iframe.src !== window.location.href && iframe.src !== "about:blank") {
+        return; 
+      }
+      
       iframe.src = url;
       iframe.style.display = "block";
       
       iframe.onload = () => {
         document.getElementById('status-container').style.display = 'none';
       };
+
+      // Keamanan terakhir: paksa hilangkan loader setelah 5 detik iframe dipicu
+      setTimeout(() => {
+        const statusContainer = document.getElementById('status-container');
+        if (statusContainer) statusContainer.style.display = 'none';
+        iframe.style.display = "block";
+      }, 5000);
     }
 
-    function handleError(error) {
-      let msg = "";
-      switch(error.code) {
-        case error.PERMISSION_DENIED:
-          msg = "Izin lokasi ditolak. Harap izinkan akses lokasi di pengaturan browser Anda.";
-          break;
-        case error.POSITION_UNAVAILABLE:
-          msg = "Sinyal GPS tidak ditemukan. Pastikan GPS perangkat aktif.";
-          break;
-        case error.TIMEOUT:
-          msg = "Waktu pencarian lokasi habis. Mencoba memuat ulang...";
-          setTimeout(() => location.reload(), 2000);
-          return;
-        default:
-          msg = "Terjadi kesalahan pada GPS.";
-      }
-      showErrorMsg(msg);
-      // Tetap muat aplikasi setelah 3 detik meskipun lokasi gagal (opsional)
-      setTimeout(() => loadIframe(baseUrl), 3000);
-    }
-
-    function showErrorMsg(msg) {
-      statusText.innerText = msg;
-      spinner.style.display = "none";
-      retryBtn.style.display = "inline-block";
-    }
-
-    // Mulai proses saat halaman siap
-    window.addEventListener('DOMContentLoaded', initGPS);
+    // Jalankan inisialisasi
+    window.addEventListener('load', initGPS);
   </script>
 </body>
 </html>
