@@ -48,6 +48,11 @@
         .btn-primary:active {
             transform: scale(0.98);
         }
+        .disabled-btn {
+            opacity: 0.5;
+            pointer-events: none;
+            filter: grayscale(1);
+        }
         /* Notification Styles */
         #notificationToast {
             transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease;
@@ -78,7 +83,7 @@
         <!-- Header Section -->
         <div class="flex items-center justify-between mb-2">
             <div>
-                <h1 class="text-2xl font-bold text-slate-900 tracking-tight">LAPORAN STOCK<span class="text-blue-600">SUMENEP</span></h1>
+                <h1 class="text-2xl font-bold text-slate-900 tracking-tight">LAPORAN STOCK <span class="text-blue-600">SUMENEP</span></h1>
                 <p class="text-slate-500 text-xs font-medium">Sistem Pelaporan Stock</p>
             </div>
             <div class="p-2 bg-white rounded-full shadow-sm border border-slate-100">
@@ -92,9 +97,21 @@
             <!-- GPS Status Bar -->
             <div id="statusContainer" class="px-4 py-2.5 bg-slate-50 border-b border-slate-100 flex items-center justify-center gap-2">
                 <div id="gpsPulse" class="w-2 h-2 rounded-full bg-slate-300 animate-pulse"></div>
-                <span id="statusText" class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                    Inisialisasi GPS...
+                <span id="statusText" class="text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">
+                    Menunggu Izin Lokasi...
                 </span>
+            </div>
+
+            <!-- GPS Error Alert -->
+            <div id="gpsAlert" class="hidden px-5 py-3 bg-red-50 border-b border-red-100 flex items-start gap-3">
+                <i data-lucide="alert-circle" class="w-5 h-5 text-red-500 shrink-0 mt-0.5"></i>
+                <div class="flex-1">
+                    <p class="text-[11px] text-red-700 font-bold leading-tight mb-1">Akses Lokasi Diperlukan</p>
+                    <p class="text-[10px] text-red-600 leading-relaxed">
+                        Mohon aktifkan GPS dan berikan izin lokasi pada browser untuk melanjutkan pengiriman data.
+                    </p>
+                    <button onclick="requestLocation()" class="mt-2 text-[10px] bg-red-500 text-white px-3 py-1 rounded-lg font-bold">Coba Lagi</button>
+                </div>
             </div>
 
             <!-- Preview/Upload Area -->
@@ -114,9 +131,9 @@
                 
                 <div id="placeholder" class="py-12 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50/50">
                     <div class="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-4">
-                        <i data-lucide="camera" class="w-8 h-8 text-slate-300"></i>
+                        <i data-lucide="map-pin" id="placeholderIcon" class="w-8 h-8 text-slate-300"></i>
                     </div>
-                    <p id="placeholderText" class="text-sm font-semibold text-slate-400 text-center px-8">Lengkapi data untuk mengaktifkan kamera</p>
+                    <p id="placeholderText" class="text-sm font-semibold text-slate-400 text-center px-8 italic">Pastikan GPS aktif sebelum memotret</p>
                 </div>
 
                 <!-- Pro Loading Overlay -->
@@ -218,6 +235,7 @@
         const resetBtn = document.getElementById('resetBtn');
         const statusText = document.getElementById('statusText');
         const gpsPulse = document.getElementById('gpsPulse');
+        const gpsAlert = document.getElementById('gpsAlert');
         const loadingOverlay = document.getElementById('loadingOverlay');
         const previewContainer = document.getElementById('previewContainer');
         const placeholder = document.getElementById('placeholder');
@@ -240,31 +258,79 @@
         }
 
         function validate() {
-            const isReady = inputs.every(i => i.value.trim() !== "") && locationLocked;
-            if (isReady) {
-                cameraLabel.classList.remove('disabled-btn', 'opacity-50');
-                if(!image1Data) placeholderText.textContent = "Siap mengambil foto";
+            const formFilled = inputs.every(i => i.value.trim() !== "");
+            
+            if (formFilled && locationLocked) {
+                cameraLabel.classList.remove('disabled-btn');
+                if(!image1Data) placeholderText.textContent = "GPS Aktif. Silakan ambil foto.";
             } else {
-                cameraLabel.classList.add('disabled-btn', 'opacity-50');
+                cameraLabel.classList.add('disabled-btn');
+                if(!locationLocked) {
+                    placeholderText.textContent = "Menunggu izin lokasi (GPS)...";
+                } else {
+                    placeholderText.textContent = "Lengkapi data PPTS untuk memotret.";
+                }
+            }
+
+            if (formFilled && locationLocked && image1Data && image2Data) {
+                cloudSubmitBtn.disabled = false;
+                cloudSubmitBtn.classList.remove('disabled-btn');
+            } else {
+                cloudSubmitBtn.disabled = true;
+                cloudSubmitBtn.classList.add('disabled-btn');
             }
         }
 
-        window.onload = () => {
+        // Fungsi Proaktif Meminta Lokasi
+        function requestLocation() {
             if ("geolocation" in navigator) {
-                navigator.geolocation.watchPosition((pos) => {
-                    locationLocked = true;
-                    currentPos = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-                    
-                    gpsPulse.className = "w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]";
-                    statusText.className = "text-[10px] font-bold text-green-600 uppercase tracking-widest";
-                    statusText.textContent = `GPS Aktif: ${currentPos.lat.toFixed(5)}, ${currentPos.lon.toFixed(5)}`;
-                    validate();
-                }, () => {
-                    gpsPulse.className = "w-2 h-2 rounded-full bg-red-500 animate-pulse";
-                    statusText.className = "text-[10px] font-bold text-red-500 uppercase tracking-widest";
-                    statusText.textContent = "GPS Error: Akses Ditolak";
-                }, { enableHighAccuracy: true });
+                statusText.textContent = "Meminta Izin GPS...";
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => handleGPSSuccess(pos),
+                    (err) => handleGPSError(err),
+                    { enableHighAccuracy: true, timeout: 10000 }
+                );
+                
+                // Mulai tracking real-time
+                navigator.geolocation.watchPosition(
+                    (pos) => handleGPSSuccess(pos),
+                    (err) => handleGPSError(err),
+                    { enableHighAccuracy: true }
+                );
+            } else {
+                statusText.textContent = "Browser tidak mendukung GPS";
             }
+        }
+
+        function handleGPSSuccess(pos) {
+            locationLocked = true;
+            gpsAlert.classList.add('hidden');
+            currentPos = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+            
+            gpsPulse.className = "w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]";
+            statusText.className = "text-[10px] font-bold text-green-600 uppercase tracking-widest";
+            statusText.textContent = `GPS Terkunci: ${currentPos.lat.toFixed(5)}, ${currentPos.lon.toFixed(5)}`;
+            validate();
+        }
+
+        function handleGPSError(err) {
+            locationLocked = false;
+            gpsAlert.classList.remove('hidden');
+            gpsPulse.className = "w-2 h-2 rounded-full bg-red-500 animate-pulse";
+            statusText.className = "text-[10px] font-bold text-red-500 uppercase tracking-widest";
+            
+            if(err.code === 1) {
+                statusText.textContent = "GPS: Izin Ditolak";
+            } else if (err.code === 3) {
+                statusText.textContent = "GPS: Waktu Habis (Timeout)";
+            } else {
+                statusText.textContent = "GPS: Masalah Sinyal";
+            }
+            validate();
+        }
+
+        window.onload = () => {
+            requestLocation();
             validate();
         };
 
@@ -284,14 +350,12 @@
                 } else if (!image2Data) {
                     image2Data = event.target.result;
                     img2Preview.src = image2Data;
-                    cameraLabel.classList.add('disabled-btn', 'opacity-50');
+                    cameraLabel.classList.add('disabled-btn');
                     cameraBtnText.textContent = "Selesai";
-                    
-                    cloudSubmitBtn.disabled = false;
-                    cloudSubmitBtn.classList.remove('disabled-btn');
                 }
                 placeholder.classList.add('hidden');
                 previewContainer.classList.remove('hidden');
+                validate();
             };
             reader.readAsDataURL(file);
             e.target.value = '';
@@ -306,7 +370,7 @@
             previewContainer.classList.add('hidden');
             placeholder.classList.remove('hidden');
             cameraBtnText.textContent = "Foto 1";
-            cameraLabel.classList.remove('disabled-btn', 'opacity-50');
+            cameraLabel.classList.add('disabled-btn');
             cloudSubmitBtn.disabled = true;
             cloudSubmitBtn.classList.add('disabled-btn');
             resetBtn.classList.add('hidden');
@@ -336,15 +400,18 @@
         }
 
         cloudSubmitBtn.addEventListener('click', async () => {
+            if(!locationLocked) {
+                alert("GPS belum aktif. Mohon berikan izin lokasi terlebih dahulu.");
+                requestLocation();
+                return;
+            }
+
             loadingOverlay.classList.remove('hidden');
             try {
                 await uploadData(image1Data, "TAMPAK_DEPAN");
                 await uploadData(image2Data, "STOCK_PPTS");
                 
-                // Menampilkan notifikasi kustom sebagai pengganti alert
                 showNotification();
-                
-                // Memberikan sedikit jeda sebelum reset agar user sempat melihat foto mereka terhapus
                 setTimeout(resetApp, 500);
             } catch (err) {
                 alert("Gagal mengunggah. Periksa koneksi internet Anda.");
