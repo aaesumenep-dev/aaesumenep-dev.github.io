@@ -12,11 +12,6 @@
             font-family: 'Plus Jakarta Sans', sans-serif; 
             background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); 
         }
-        .glass-morphism {
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }
         .loader { 
             border: 3px solid #f3f3f3; 
             border-top: 3px solid #2563eb; 
@@ -48,12 +43,13 @@
         .btn-primary:active {
             transform: scale(0.98);
         }
+        /* Style untuk tombol yang dinonaktifkan */
         .disabled-btn {
-            opacity: 0.5;
+            opacity: 0.4;
             pointer-events: none;
             filter: grayscale(1);
+            cursor: not-allowed;
         }
-        /* Notification Styles */
         #notificationToast {
             transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease;
             transform: translateY(-120%);
@@ -66,7 +62,7 @@
 </head>
 <body class="min-h-screen flex flex-col items-center justify-start p-4 pb-12 overflow-x-hidden">
 
-    <!-- Custom Notification Toast -->
+    <!-- Notifikasi Sukses -->
     <div id="notificationToast" class="fixed top-6 left-4 right-4 max-w-md mx-auto z-50 pointer-events-none opacity-0">
         <div class="bg-white rounded-2xl shadow-2xl border border-emerald-100 p-4 flex items-center gap-4 pointer-events-auto">
             <div class="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center shrink-0 shadow-lg shadow-emerald-200">
@@ -80,41 +76,41 @@
     </div>
 
     <div class="w-full max-w-md space-y-4 pt-4">
-        <!-- Header Section -->
+        <!-- Header -->
         <div class="flex items-center justify-between mb-2">
             <div>
                 <h1 class="text-2xl font-bold text-slate-900 tracking-tight">LAPORAN STOCK <span class="text-blue-600">SUMENEP</span></h1>
-                <p class="text-slate-500 text-xs font-medium">Sistem Pelaporan Stock</p>
+                <p class="text-slate-500 text-xs font-medium">Sistem Pelaporan Terverifikasi GPS</p>
             </div>
             <div class="p-2 bg-white rounded-full shadow-sm border border-slate-100">
                 <i data-lucide="layers" class="w-5 h-5 text-blue-600"></i>
             </div>
         </div>
 
-        <!-- Main Card -->
+        <!-- Card Utama -->
         <div class="bg-white rounded-3xl shadow-xl shadow-slate-200/50 overflow-hidden border border-slate-100">
             
-            <!-- GPS Status Bar -->
+            <!-- Status GPS -->
             <div id="statusContainer" class="px-4 py-2.5 bg-slate-50 border-b border-slate-100 flex items-center justify-center gap-2">
                 <div id="gpsPulse" class="w-2 h-2 rounded-full bg-slate-300 animate-pulse"></div>
                 <span id="statusText" class="text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">
-                    Menunggu Izin Lokasi...
+                    Mengecek Izin Lokasi...
                 </span>
             </div>
 
-            <!-- GPS Error Alert -->
+            <!-- Pesan Error GPS -->
             <div id="gpsAlert" class="hidden px-5 py-3 bg-red-50 border-b border-red-100 flex items-start gap-3">
                 <i data-lucide="alert-circle" class="w-5 h-5 text-red-500 shrink-0 mt-0.5"></i>
                 <div class="flex-1">
                     <p class="text-[11px] text-red-700 font-bold leading-tight mb-1">Akses Lokasi Diperlukan</p>
                     <p class="text-[10px] text-red-600 leading-relaxed">
-                        Mohon aktifkan GPS dan berikan izin lokasi pada browser untuk melanjutkan pengiriman data.
+                        Data tidak dapat dikirim tanpa koordinat GPS. Mohon berikan izin lokasi di pengaturan browser Anda.
                     </p>
-                    <button onclick="requestLocation()" class="mt-2 text-[10px] bg-red-500 text-white px-3 py-1 rounded-lg font-bold">Coba Lagi</button>
+                    <button onclick="requestLocation()" class="mt-2 text-[10px] bg-red-600 text-white px-3 py-1 rounded-lg font-bold hover:bg-red-700 transition-colors">Aktifkan GPS</button>
                 </div>
             </div>
 
-            <!-- Preview/Upload Area -->
+            <!-- Preview Gambar -->
             <div class="p-5 relative">
                 <div id="previewContainer" class="hidden space-y-4">
                     <div class="grid grid-cols-2 gap-3">
@@ -133,18 +129,18 @@
                     <div class="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-4">
                         <i data-lucide="map-pin" id="placeholderIcon" class="w-8 h-8 text-slate-300"></i>
                     </div>
-                    <p id="placeholderText" class="text-sm font-semibold text-slate-400 text-center px-8 italic">Pastikan GPS aktif sebelum memotret</p>
+                    <p id="placeholderText" class="text-sm font-semibold text-slate-400 text-center px-8 italic">Izin GPS diperlukan sebelum memotret</p>
                 </div>
 
-                <!-- Pro Loading Overlay -->
+                <!-- Overlay Loading -->
                 <div id="loadingOverlay" class="absolute inset-0 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center hidden z-30 transition-all">
                     <div class="loader mb-4"></div>
-                    <p class="text-slate-900 font-bold text-sm tracking-tight" id="loadingText">Mengunggah ke Cloud</p>
-                    <p class="text-slate-400 text-[10px] mt-1 font-medium italic">Mohon tunggu sebentar...</p>
+                    <p class="text-slate-900 font-bold text-sm tracking-tight">Sedang Mengirim...</p>
+                    <p class="text-slate-400 text-[10px] mt-1 font-medium italic">Mohon jangan tutup halaman</p>
                 </div>
             </div>
 
-            <!-- Modern Form -->
+            <!-- Form -->
             <div class="px-5 pb-6 space-y-4">
                 <div class="space-y-3">
                     <div class="relative">
@@ -198,11 +194,11 @@
                     </div>
                 </div>
 
-                <!-- Action Buttons -->
+                <!-- Tombol Aksi -->
                 <div class="grid grid-cols-2 gap-3 pt-2">
                     <label id="cameraLabel" for="cameraInput" class="disabled-btn flex flex-col items-center justify-center gap-1.5 py-4 rounded-2xl bg-white border-2 border-slate-100 shadow-sm text-slate-600 font-bold text-xs cursor-pointer hover:bg-slate-50 transition-all">
                         <i data-lucide="camera" class="w-6 h-6 text-blue-600"></i>
-                        <span id="cameraBtnText">Foto 1</span>
+                        <span id="cameraBtnText">Ambil Foto</span>
                         <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
                     </label>
 
@@ -213,12 +209,12 @@
                 </div>
                 
                 <button id="resetBtn" class="hidden w-full text-slate-400 hover:text-red-500 text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-1.5 py-2 mt-2">
-                    <i data-lucide="refresh-ccw" class="w-3.5 h-3.5"></i> Mulai Ulang
+                    <i data-lucide="refresh-ccw" class="w-3.5 h-3.5"></i> Bersihkan Form
                 </button>
             </div>
         </div>
         
-        <p class="text-center text-slate-400 text-[9px] font-medium uppercase tracking-[0.2em]">© 2024 GeoKamera System • v2.0 Pro</p>
+        <p class="text-center text-slate-400 text-[9px] font-medium uppercase tracking-[0.2em]">SISTEM PELAPORAN DIGITAL • SUMENEP</p>
     </div>
 
     <script>
@@ -257,21 +253,20 @@
             }, 4000);
         }
 
+        // VALIDASI UTAMA: Tombol kirim hanya aktif jika GPS terkunci DAN data lengkap
         function validate() {
             const formFilled = inputs.every(i => i.value.trim() !== "");
             
+            // Logika Tombol Kamera
             if (formFilled && locationLocked) {
                 cameraLabel.classList.remove('disabled-btn');
-                if(!image1Data) placeholderText.textContent = "GPS Aktif. Silakan ambil foto.";
+                if(!image1Data) placeholderText.textContent = "GPS Terdeteksi. Silakan ambil foto.";
             } else {
                 cameraLabel.classList.add('disabled-btn');
-                if(!locationLocked) {
-                    placeholderText.textContent = "Menunggu izin lokasi (GPS)...";
-                } else {
-                    placeholderText.textContent = "Lengkapi data PPTS untuk memotret.";
-                }
+                placeholderText.textContent = !locationLocked ? "GPS Diperlukan untuk memotret." : "Lengkapi form untuk memotret.";
             }
 
+            // Logika Tombol Kirim (Sangat Ketat)
             if (formFilled && locationLocked && image1Data && image2Data) {
                 cloudSubmitBtn.disabled = false;
                 cloudSubmitBtn.classList.remove('disabled-btn');
@@ -281,24 +276,22 @@
             }
         }
 
-        // Fungsi Proaktif Meminta Lokasi
         function requestLocation() {
             if ("geolocation" in navigator) {
-                statusText.textContent = "Meminta Izin GPS...";
+                statusText.textContent = "Mengambil Koordinat...";
                 navigator.geolocation.getCurrentPosition(
                     (pos) => handleGPSSuccess(pos),
                     (err) => handleGPSError(err),
-                    { enableHighAccuracy: true, timeout: 10000 }
+                    { enableHighAccuracy: true, timeout: 15000 }
                 );
                 
-                // Mulai tracking real-time
                 navigator.geolocation.watchPosition(
                     (pos) => handleGPSSuccess(pos),
                     (err) => handleGPSError(err),
                     { enableHighAccuracy: true }
                 );
             } else {
-                statusText.textContent = "Browser tidak mendukung GPS";
+                statusText.textContent = "GPS Tidak Didukung Browser";
             }
         }
 
@@ -321,10 +314,8 @@
             
             if(err.code === 1) {
                 statusText.textContent = "GPS: Izin Ditolak";
-            } else if (err.code === 3) {
-                statusText.textContent = "GPS: Waktu Habis (Timeout)";
             } else {
-                statusText.textContent = "GPS: Masalah Sinyal";
+                statusText.textContent = "GPS: Gagal Mendapatkan Lokasi";
             }
             validate();
         }
@@ -345,13 +336,13 @@
                 if (!image1Data) {
                     image1Data = event.target.result;
                     img1Preview.src = image1Data;
-                    cameraBtnText.textContent = "Foto 2";
+                    cameraBtnText.textContent = "Ambil Foto 2";
                     resetBtn.classList.remove('hidden');
                 } else if (!image2Data) {
                     image2Data = event.target.result;
                     img2Preview.src = image2Data;
                     cameraLabel.classList.add('disabled-btn');
-                    cameraBtnText.textContent = "Selesai";
+                    cameraBtnText.textContent = "Foto Lengkap";
                 }
                 placeholder.classList.add('hidden');
                 previewContainer.classList.remove('hidden');
@@ -369,7 +360,7 @@
             img2Preview.src = "";
             previewContainer.classList.add('hidden');
             placeholder.classList.remove('hidden');
-            cameraBtnText.textContent = "Foto 1";
+            cameraBtnText.textContent = "Ambil Foto";
             cameraLabel.classList.add('disabled-btn');
             cloudSubmitBtn.disabled = true;
             cloudSubmitBtn.classList.add('disabled-btn');
@@ -378,7 +369,7 @@
         }
 
         resetBtn.addEventListener('click', () => {
-            if(confirm("Bersihkan data dan ambil ulang foto?")) resetApp();
+            if(confirm("Hapus semua data dan ambil ulang?")) resetApp();
         });
 
         async function uploadData(base64, suffix) {
@@ -400,9 +391,10 @@
         }
 
         cloudSubmitBtn.addEventListener('click', async () => {
+            // Cek ulang GPS sebelum benar-benar mengirim
             if(!locationLocked) {
-                alert("GPS belum aktif. Mohon berikan izin lokasi terlebih dahulu.");
-                requestLocation();
+                gpsAlert.classList.remove('hidden');
+                alert("Kesalahan: Lokasi GPS tidak ditemukan. Data tidak bisa dikirim.");
                 return;
             }
 
@@ -412,9 +404,9 @@
                 await uploadData(image2Data, "STOCK_PPTS");
                 
                 showNotification();
-                setTimeout(resetApp, 500);
+                setTimeout(resetApp, 800);
             } catch (err) {
-                alert("Gagal mengunggah. Periksa koneksi internet Anda.");
+                alert("Koneksi bermasalah. Silakan coba lagi.");
             } finally {
                 loadingOverlay.classList.add('hidden');
             }
