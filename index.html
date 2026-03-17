@@ -43,7 +43,6 @@
         .btn-primary:active {
             transform: scale(0.98);
         }
-        /* Style untuk tombol yang dinonaktifkan */
         .disabled-btn {
             opacity: 0.4;
             pointer-events: none;
@@ -70,7 +69,7 @@
             </div>
             <div class="flex-1">
                 <h3 class="text-slate-900 font-bold text-sm">Berhasil Diunggah!</h3>
-                <p class="text-slate-500 text-xs">Laporan PPTS telah tersimpan di Cloud.</p>
+                <p class="text-slate-500 text-xs">Data lama otomatis diperbarui.</p>
             </div>
         </div>
     </div>
@@ -104,7 +103,7 @@
                 <div class="flex-1">
                     <p class="text-[11px] text-red-700 font-bold leading-tight mb-1">Akses Lokasi Diperlukan</p>
                     <p class="text-[10px] text-red-600 leading-relaxed">
-                        Data tidak dapat dikirim tanpa koordinat GPS. Mohon berikan izin lokasi di pengaturan browser Anda.
+                        Data tidak dapat dikirim tanpa koordinat GPS. Mohon aktifkan lokasi di pengaturan browser Anda.
                     </p>
                     <button onclick="requestLocation()" class="mt-2 text-[10px] bg-red-600 text-white px-3 py-1 rounded-lg font-bold hover:bg-red-700 transition-colors">Aktifkan GPS</button>
                 </div>
@@ -136,7 +135,7 @@
                 <div id="loadingOverlay" class="absolute inset-0 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center hidden z-30 transition-all">
                     <div class="loader mb-4"></div>
                     <p class="text-slate-900 font-bold text-sm tracking-tight">Sedang Mengirim...</p>
-                    <p class="text-slate-400 text-[10px] mt-1 font-medium italic">Mohon jangan tutup halaman</p>
+                    <p class="text-slate-400 text-[10px] mt-1 font-medium italic">Data lama akan ditimpa otomatis</p>
                 </div>
             </div>
 
@@ -191,6 +190,12 @@
                             <option value="Saronggi">Saronggi</option>
                             <option value="Talango">Talango</option>
                         </select>
+                    </div>
+                    <div class="bg-blue-50/50 p-3 rounded-xl border border-blue-100">
+                        <p class="text-[10px] text-blue-600 font-medium leading-relaxed flex items-center gap-2">
+                            <i data-lucide="info" class="w-3 h-3"></i>
+                            <span>Catatan: Mengirim data dengan Kode PPTS yang sama akan memperbarui (menimpa) laporan sebelumnya.</span>
+                        </p>
                     </div>
                 </div>
 
@@ -253,11 +258,9 @@
             }, 4000);
         }
 
-        // VALIDASI UTAMA: Tombol kirim hanya aktif jika GPS terkunci DAN data lengkap
         function validate() {
             const formFilled = inputs.every(i => i.value.trim() !== "");
             
-            // Logika Tombol Kamera
             if (formFilled && locationLocked) {
                 cameraLabel.classList.remove('disabled-btn');
                 if(!image1Data) placeholderText.textContent = "GPS Terdeteksi. Silakan ambil foto.";
@@ -266,7 +269,6 @@
                 placeholderText.textContent = !locationLocked ? "GPS Diperlukan untuk memotret." : "Lengkapi form untuk memotret.";
             }
 
-            // Logika Tombol Kirim (Sangat Ketat)
             if (formFilled && locationLocked && image1Data && image2Data) {
                 cloudSubmitBtn.disabled = false;
                 cloudSubmitBtn.classList.remove('disabled-btn');
@@ -391,7 +393,6 @@
         }
 
         cloudSubmitBtn.addEventListener('click', async () => {
-            // Cek ulang GPS sebelum benar-benar mengirim
             if(!locationLocked) {
                 gpsAlert.classList.remove('hidden');
                 alert("Kesalahan: Lokasi GPS tidak ditemukan. Data tidak bisa dikirim.");
@@ -400,6 +401,7 @@
 
             loadingOverlay.classList.remove('hidden');
             try {
+                // Proses unggah
                 await uploadData(image1Data, "TAMPAK_DEPAN");
                 await uploadData(image2Data, "STOCK_PPTS");
                 
